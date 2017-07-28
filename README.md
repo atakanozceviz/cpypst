@@ -1,2 +1,2 @@
-##cpypst
+## cpypst
 Share clipboard across computers.
