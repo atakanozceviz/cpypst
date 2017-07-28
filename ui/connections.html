@@ -1,0 +1,56 @@
+{{define "ui"}}
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+          content="width=device-width, user-scalable=no, initial-scale=1.0, maximum-scale=1.0, minimum-scale=1.0">
+    <meta http-equiv="X-UA-Compatible" content="ie=edge">
+    <title>Connections</title>
+    <style>
+        table, th, td {
+            border: 1px solid black;
+            border-collapse: collapse;
+        }
+
+        th, td {
+            padding: 5px;
+        }
+
+        th {
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+<h3>Incoming Connections</h3>
+<form>
+    <table style="width:100%">
+        <tr>
+            <th>Connection</th>
+            <th style="width:1%">Active</th>
+            <th style="width:1%"></th>
+        </tr>
+        {{range $k,$v := .Connections}}
+        <tr id="{{$k}}">
+            <td>{{$v.Name}}({{$v.Addr}})</td>
+            <td>{{$v.Active}}</td>
+            <td>
+                <button name="action" value="{{if $v.Active}}disable{{end}}{{if not $v.Active}}enable{{end}}">{{if $v.Active}}Disable{{end}}{{if not $v.Active}}Enable{{end}}</button>
+            </td>
+        </tr>
+        {{end}}
+    </table>
+</form>
+
+<script src="/jquery"></script>
+<script type="application/javascript">
+    $("button").click(function (e) {
+        e.preventDefault();
+        var id = $(this).closest('tr').attr('id');
+        var action = $(this).attr('value');
+        $.ajax({url: '/action?action=' + action + '&ID=' + id, success: window.location.reload(true)});
+    })
+</script>
+</body>
+</html>{{end}}
