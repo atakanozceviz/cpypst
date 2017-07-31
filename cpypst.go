@@ -3,9 +3,11 @@ package main
 import (
 	"bytes"
 	"fmt"
+	"io"
 	"io/ioutil"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 	"strconv"
 	"time"
@@ -21,16 +23,21 @@ const (
 
 var tmp model.Tmp
 var clip model.Tmp
+var lname, _ = os.Hostname()
 
 var re = regexp.MustCompile(`:[0-9]+`)
 
 func connect(w http.ResponseWriter, r *http.Request) {
 	addr := r.RemoteAddr
 	name := r.FormValue("name")
-	if name != "" && addr != "" {
+	check := r.Header.Get("Connect")
+	if name != "" && addr != "" && check == "true" {
 		ip := re.ReplaceAllString(addr, "")
-		ui.Connections.Add(model.Connection{ip, name, true})
+		ui.Incoming.Add(model.Connection{ip, name, true})
+		w.Write([]byte(lname))
 		log.Println(name + " (" + ip + ") is connected!")
+	} else {
+		io.WriteString(w, "Wrong request!")
 	}
 }
 
@@ -53,15 +60,16 @@ func checkClip() {
 
 func send(clip []byte) {
 	client := &http.Client{}
-	addr := ui.Connections.Connections
+	addr := ui.Outgoing.Connections
 
 	if len(addr) > 0 {
 		for _, v := range addr {
 			if v.Active == true {
-				req, err := http.NewRequest("POST", "http://"+v.Addr+":8080/paste", bytes.NewBuffer(clip))
+				req, err := http.NewRequest("POST", "http://"+v.Ip+":8080/paste", bytes.NewBuffer(clip))
 				if err != nil {
 					log.Println(err)
 				}
+				req.Header.Set("Send", "true")
 				resp, err := client.Do(req)
 				if err != nil {
 					log.Println(err)
@@ -73,67 +81,118 @@ func send(clip []byte) {
 }
 
 func paste(w http.ResponseWriter, r *http.Request) {
-	defer r.Body.Close()
-	rbody, err := ioutil.ReadAll(r.Body)
-	if err != nil {
-		log.Println(err)
-	}
-	clip.Write(string(rbody))
-	tmp.Write(string(rbody))
-	if clipboard.WriteAll(clip.Read()) != nil {
-		log.Println(err)
-	}
 	ip := re.ReplaceAllString(r.RemoteAddr, "")
-	ui.History.Add(model.HistItem{Ip: ip, Content: clip.Read()})
+	conn := ui.Incoming.Connections[ip]
+	check := r.Header.Get("Send")
+	if conn.Active && check == "true" {
+		defer r.Body.Close()
+		rbody, err := ioutil.ReadAll(r.Body)
+		if err != nil {
+			log.Println(err)
+		}
+		clip.Write(string(rbody))
+		tmp.Write(string(rbody))
+		if clipboard.WriteAll(clip.Read()) != nil {
+			log.Println(err)
+		}
+		ip := re.ReplaceAllString(r.RemoteAddr, "")
+		ui.History.Add(model.HistItem{Ip: ip, Content: clip.Read()})
+	}
 }
 
 func action(w http.ResponseWriter, r *http.Request) {
-	action := r.FormValue("action")
-	if action == "dlt" {
-		id, err := strconv.Atoi(r.FormValue("ID"))
-		if err != nil {
-			log.Println(err)
+	switch action := r.FormValue("action"); action {
+	case "dlt":
+		{
+			id, err := strconv.Atoi(r.FormValue("ID"))
+			if err != nil {
+				log.Println(err)
+			} else {
+				ui.History.Remove(id)
+			}
 		}
-		ui.History.Remove(id)
-	}
-	if action == "cpy" {
-		id, err := strconv.Atoi(r.FormValue("ID"))
-		if err != nil {
-			log.Println(err)
+	case "cpy":
+		{
+			id, err := strconv.Atoi(r.FormValue("ID"))
+			if err != nil {
+				log.Println(err)
+			} else {
+				cpy := ui.History.History[id].Content
+				tmp.Write(cpy)
+				clipboard.WriteAll(cpy)
+			}
 		}
-		cpy := ui.History.History[id].Content
-		tmp.Write(cpy)
-		clipboard.WriteAll(cpy)
-	}
-	if action == "enable" {
-		id := r.FormValue("ID")
-		if id != "" {
-			ui.Connections.Connections[id].Active = true
-			tmp.Write("")
+	case "ienable":
+		{
+			id := r.FormValue("ID")
+			if id != "" {
+				if val, ok := ui.Incoming.Connections[id]; ok {
+					val.Active = true
+				} else {
+					io.WriteString(w, "Couldn't find connection")
+				}
+			}
 		}
-	}
-	if action == "disable" {
-		id := r.FormValue("ID")
-		if id != "" {
-			ui.Connections.Connections[id].Active = false
+	case "idisable":
+		{
+			id := r.FormValue("ID")
+			if id != "" {
+				if val, ok := ui.Incoming.Connections[id]; ok {
+					val.Active = false
+				} else {
+					io.WriteString(w, "Couldn't find connection")
+				}
+			}
 		}
+	case "oenable":
+		{
+			id := r.FormValue("ID")
+			if id != "" {
+				if val, ok := ui.Outgoing.Connections[id]; ok {
+					val.Active = true
+				} else {
+					io.WriteString(w, "Couldn't find connection")
+				}
+			}
+		}
+	case "odisable":
+		{
+			id := r.FormValue("ID")
+			if id != "" {
+				if val, ok := ui.Outgoing.Connections[id]; ok {
+					val.Active = false
+				} else {
+					io.WriteString(w, "Couldn't find connection")
+				}
+			}
+		}
+	default:
+		io.WriteString(w, "Invalid action!")
 	}
+
 }
 
 func main() {
 	go func() {
-		var name string
 		var addr string
-
-		fmt.Print("Enter your name: ")
-		fmt.Scanln(&name)
-		fmt.Print("Enter ip address: ")
-		fmt.Scanln(&addr)
-		_, err := http.Get("http://" + addr + ":8080/connect?name=" + name)
-		if err != nil {
-			log.Println(err)
-		} else {
-			go checkClip()
+		for {
+			fmt.Print("Enter ip address to add a connection: ")
+			fmt.Scanln(&addr)
+			req, err := http.Get("http://" + addr + ":8080/connect?name=" + lname)
+			req.Header.Set("Connect", "true")
+			if err != nil {
+				log.Println(err)
+			} else {
+				body, err := ioutil.ReadAll(req.Body)
+				if err != nil {
+					log.Println(err)
+					req.Body.Close()
+				} else {
+					ui.Outgoing.Add(model.Connection{addr, string(body), true})
+					req.Body.Close()
+					go checkClip()
+				}
+			}
 		}
 	}()
 
@@ -146,6 +205,5 @@ func main() {
 	http.HandleFunc("/connect", connect)
 	http.HandleFunc("/paste", paste)
 
-	fmt.Println("Serving")
 	log.Fatal(http.ListenAndServe(":"+port, nil))
 }

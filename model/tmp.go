@@ -3,7 +3,7 @@ package model
 import "sync"
 
 type Tmp struct {
-	sync.Mutex
+	*sync.Mutex
 	tmp string
 }
 

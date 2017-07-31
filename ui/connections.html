@@ -31,18 +31,37 @@
             <th style="width:1%">Active</th>
             <th style="width:1%"></th>
         </tr>
-        {{range $k,$v := .Connections}}
+        {{range $k,$v := .Incoming}}
         <tr id="{{$k}}">
             <td>{{$v.Name}}({{$v.Addr}})</td>
             <td>{{$v.Active}}</td>
             <td>
-                <button name="action" value="{{if $v.Active}}disable{{end}}{{if not $v.Active}}enable{{end}}">{{if $v.Active}}Disable{{end}}{{if not $v.Active}}Enable{{end}}</button>
+                <button name="action" value="{{if $v.Active}}idisable{{end}}{{if not $v.Active}}ienable{{end}}">{{if $v.Active}}Disable{{end}}{{if not $v.Active}}Enable{{end}}</button>
             </td>
         </tr>
         {{end}}
     </table>
 </form>
 
+<h3>Outgoing Connections</h3>
+<form>
+    <table style="width:100%">
+        <tr>
+            <th>Connection</th>
+            <th style="width:1%">Active</th>
+            <th style="width:1%"></th>
+        </tr>
+        {{range $k,$v := .Outgoing}}
+        <tr id="{{$k}}">
+            <td>{{$v.Name}}({{$v.Ip}})</td>
+            <td>{{$v.Active}}</td>
+            <td>
+                <button name="action" value="{{if $v.Active}}odisable{{end}}{{if not $v.Active}}oenable{{end}}">{{if $v.Active}}Disable{{end}}{{if not $v.Active}}Enable{{end}}</button>
+            </td>
+        </tr>
+        {{end}}
+    </table>
+</form>
 <script src="/jquery"></script>
 <script type="application/javascript">
     $("button").click(function (e) {

@@ -5,7 +5,7 @@ import (
 )
 
 type Connection struct {
-	Addr   string
+	Ip     string
 	Name   string
 	Active bool
 }
@@ -20,24 +20,24 @@ func (c *Connections) Add(con Connection) {
 		c.Connections = make(map[string]*Connection)
 	}
 	c.Lock()
-	c.Connections[con.Addr] = &con
+	c.Connections[con.Ip] = &con
 	c.Unlock()
 }
 
 func (c *Connections) Remove(con Connection) {
 	c.Lock()
-	delete(c.Connections, con.Addr)
+	delete(c.Connections, con.Ip)
 	c.Unlock()
 }
 
 func (c *Connections) Disable(con Connection) {
 	c.Lock()
-	c.Connections[con.Addr].Active = false
+	c.Connections[con.Ip].Active = false
 	c.Unlock()
 }
 
 func (c *Connections) Enable(con Connection) {
 	c.Lock()
-	c.Connections[con.Addr].Active = true
+	c.Connections[con.Ip].Active = true
 	c.Unlock()
 }
