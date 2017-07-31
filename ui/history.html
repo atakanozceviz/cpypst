@@ -33,7 +33,7 @@
         </tr>
         {{range $ID,$v := .History}}
         <tr id="{{$ID}}">
-            <td>{{range $k,$conn := .Incoming}}{{if $k eq $v.Ip}}{{$conn.Name}}{{end}}{{end}}</td>
+            <td>{{(index $.Incoming $v.Ip).Name}}</td>
             <td>{{$v.Content}}</td>
             <td>
                 <button name="action" value="cpy">Copy</button>

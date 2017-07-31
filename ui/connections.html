@@ -33,7 +33,7 @@
         </tr>
         {{range $k,$v := .Incoming}}
         <tr id="{{$k}}">
-            <td>{{$v.Name}}({{$v.Addr}})</td>
+            <td>{{$v.Name}}({{$v.Ip}})</td>
             <td>{{$v.Active}}</td>
             <td>
                 <button name="action" value="{{if $v.Active}}idisable{{end}}{{if not $v.Active}}ienable{{end}}">{{if $v.Active}}Disable{{end}}{{if not $v.Active}}Enable{{end}}</button>

@@ -30,8 +30,8 @@ var re = regexp.MustCompile(`:[0-9]+`)
 func connect(w http.ResponseWriter, r *http.Request) {
 	addr := r.RemoteAddr
 	name := r.FormValue("name")
-	check := r.Header.Get("Connect")
-	if name != "" && addr != "" && check == "true" {
+
+	if name != "" && addr != "" {
 		ip := re.ReplaceAllString(addr, "")
 		ui.Incoming.Add(model.Connection{ip, name, true})
 		w.Write([]byte(lname))
@@ -81,23 +81,19 @@ func send(clip []byte) {
 }
 
 func paste(w http.ResponseWriter, r *http.Request) {
-	ip := re.ReplaceAllString(r.RemoteAddr, "")
-	conn := ui.Incoming.Connections[ip]
-	check := r.Header.Get("Send")
-	if conn.Active && check == "true" {
-		defer r.Body.Close()
-		rbody, err := ioutil.ReadAll(r.Body)
-		if err != nil {
-			log.Println(err)
-		}
-		clip.Write(string(rbody))
-		tmp.Write(string(rbody))
-		if clipboard.WriteAll(clip.Read()) != nil {
-			log.Println(err)
-		}
-		ip := re.ReplaceAllString(r.RemoteAddr, "")
-		ui.History.Add(model.HistItem{Ip: ip, Content: clip.Read()})
+	defer r.Body.Close()
+	rbody, err := ioutil.ReadAll(r.Body)
+	if err != nil {
+		log.Println(err)
 	}
+	clip.Write(string(rbody))
+	tmp.Write(string(rbody))
+	if clipboard.WriteAll(clip.Read()) != nil {
+		log.Println(err)
+	}
+	ip := re.ReplaceAllString(r.RemoteAddr, "")
+	ui.History.Add(model.HistItem{Ip: ip, Content: clip.Read()})
+
 }
 
 func action(w http.ResponseWriter, r *http.Request) {
